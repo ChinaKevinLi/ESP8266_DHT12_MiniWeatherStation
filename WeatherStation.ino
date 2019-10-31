@@ -28,7 +28,7 @@ const char* WIFI_SSID = "SSID";
 const char* WIFI_PWD = "Password";
 
 #define TZ              8       // (utc+) TZ in hours //Make it suitable for China
-#define DST_MN          60      // use 60mn for summer time in some countries
+#define DST_MN          0      // use 60mn for summer time in some countries
 
 // Setup
 const int UPDATE_INTERVAL_SECS = 20 * 60; // Update every 20 minutes
