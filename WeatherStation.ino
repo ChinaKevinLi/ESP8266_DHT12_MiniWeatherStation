@@ -25,7 +25,8 @@
 
 // WIFI
 const char* WIFI_SSID = "SSID";
-const char* WIFI_PWD = "Password";
+//const char* WIFI_SSID = "SSID";
+//const char* WIFI_PWD = "Password";
 
 #define TZ              8       // (utc+) TZ in hours //Make it suitable for China
 #define DST_MN          0      // use 60mn for summer time in some countries
@@ -37,10 +38,13 @@ const int UPDATE_INTERVAL_SECS = 20 * 60; // Update every 20 minutes
 const int I2C_DISPLAY_ADDRESS = 0x3c;
 const int SDA_PIN = D1;
 const int SDC_PIN = D2;
+const int Display_Humidity_Interval = 5;
+const int Display_Humidity_Time = 2;
+long timeTH = 0;
 
 //DHT 12 Settings
 #define DHTPIN 2
-#define DHTTYPE DHT12
+#define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
 //ThingsSpeak Settings
@@ -140,7 +144,8 @@ void setup() {
   display.setTextAlignment(TEXT_ALIGN_CENTER);
   display.setContrast(255);
 
-  WiFi.begin(WIFI_SSID,WIFI_PWD);
+  WiFi.begin(WIFI_SSID);
+  //WiFi.begin(WIFI_SSID,WIFI_PWD);
 
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -155,8 +160,12 @@ void setup() {
 
     counter++;
   }
+
+  // Uncomment the line below to sign in to BUPT network.
+  // buptlogin();
+
   // Get time from network time service
-  configTime(TZ_SEC, DST_SEC, "pool.ntp.org");
+  configTime(TZ_SEC, DST_SEC, "ntp1.aliyun.com");
 
   ui.setTargetFPS(30);
 
@@ -188,6 +197,8 @@ void setup() {
   ThingSpeak.begin(client);
 
   dht.begin();
+
+  timeTH = millis();
 }
 
 void loop() {
@@ -215,6 +226,26 @@ void loop() {
     delay(remainingTimeBudget);
   }
 
+}
+
+void buptlogin(){
+  // Change the [ip],[username] and [password] below to the one you should know.
+  char* host = "[ip]";
+  const int httpsPort = 80;
+  client.connect(host, httpsPort);
+  delay(10);
+  String postRequest =(String)("POST ") +"/login HTTP/1.1\r\n" +  
+    "Host: [ip]\r\n" +  
+    "User-Agent: curl/7.58.0\r\n" + 
+    "Accept: */*\r\n" +
+    "Content-Type: application/x-www-form-urlencoded\r\n" +
+    "Content-Length: 27\r\n\r\n"+
+    "user=[username]&pass=[password]";  
+  client.print(postRequest);
+  display.clear();
+  display.drawString(64, 20, "Hello, BUPT!");
+  display.display();
+  delay(1500);
 }
 
 void drawProgress(OLEDDisplay *display, int percentage, String label) {
@@ -316,7 +347,18 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->drawString(0, 54, String(buff));
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  String temp = String(currentWeather.temp, 1) + (IS_METRIC ? "°C" : "°F");
+  String temp;
+  if (millis() - timeTH < (1000L*Display_Humidity_Interval)) {
+    float t = dht.readTemperature();
+    temp = String(t, 1) + (IS_METRIC ? "°C" : "°F");
+  }else if(millis() - timeTH < (1000L*Display_Humidity_Interval + 1000L*Display_Humidity_Time)){
+    float h = dht.readHumidity();
+    temp = String(h, 1) + "%";
+  }else{
+    timeTH = millis();
+    float t = dht.readTemperature();
+    temp = String(t, 1) + (IS_METRIC ? "°C" : "°F");
+  }
   display->drawString(128, 54, temp);
   display->drawHorizontalLine(0, 52, 128);
 }
